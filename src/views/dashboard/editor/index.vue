@@ -1,0 +1,129 @@
+<template>
+  <div class="dashboard-editor-container">
+    <el-row style="background:#fff;padding:16px 16px 0;margin-bottom:32px;">
+      <el-col :span="8" v-if="lineChartData[0].seriesOriginData" v-for="(chart, index) in lineChartData" :key="index">
+        <h2>{{get(chart, 'title', '')}}</h2>
+        <line-chart :chart-data="chart" />
+      </el-col>
+    </el-row>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex'
+import LineChart from '../admin/components/LineChart'
+
+import { toPairs, get } from 'lodash'
+
+import { fetchNames, fetchDatesByDbName, fetchChartDataByNameAndDate } from '@/api/db'
+
+function getRandomColor() {
+  var letters = '0123456789ABCDEF';
+  var color = '#';
+  for (var i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+export default {
+  name: 'DashboardEditor',
+  components: { LineChart },
+  data() {
+    const needShowDBIndexes = [1, 3, 4, 5, 6, 7]
+
+    return {
+      chart: null,
+      needShowDBIndexes,
+      dbNames: [],
+      emptyGif: 'https://wpimg.wallstcn.com/0e03b7da-db9e-4819-ba10-9016ddfdaed3',
+      lineChartData: needShowDBIndexes.map(() => {
+        return {
+          xAxisData: [],
+          seriesOriginData: [],
+        }
+      })
+    }
+  },
+  computed: {
+    ...mapGetters([
+      'name',
+      'avatar',
+      'roles'
+    ])
+  },
+  async mounted() {
+    const dbNameResponse = await fetchNames()
+    const dbNames = dbNameResponse.data
+    this.dbNames = dbNames
+    this.needShowDBIndexes.forEach((dBIndex, index) => {
+      this.handleLoadChartData(index, dBIndex, 0)
+    })
+  },
+  methods: {
+    get,
+    async handleLoadChartData(chartIndex, dbIndex, dateIndex) {
+      this.lineChartData[chartIndex].title = this.dbNames[dbIndex]
+      const dbResponse = await fetchDatesByDbName(this.dbNames[dbIndex])
+      const dbDates = dbResponse.data
+      const chartResponse = await fetchChartDataByNameAndDate(this.dbNames[dbIndex], dbDates[dbDates.length - 1])
+      const chartData = chartResponse.data
+
+      let toPairs1 = toPairs(chartData)
+      toPairs1.forEach((item) => {
+        this.lineChartData[chartIndex].xAxisData.push(item[0])
+      })
+      let seriesOriginData = toPairs1[19][1].map(item => {
+        return {
+          name: item.metricInfo
+        }
+      })
+      seriesOriginData = seriesOriginData.map(seriesItem => {
+        return {
+          ...seriesItem,
+          color: getRandomColor(),
+          data: toPairs1.map(originItem => {
+            const target = originItem[1].find(item => item.metricInfo === seriesItem.name)
+            return Number(get(target, 'valueinfo', '0'))
+          })
+        }
+      })
+      this.lineChartData[chartIndex].seriesOriginData = seriesOriginData
+      console.log('this.lineChartData', this.lineChartData)
+    }
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+  .emptyGif {
+    display: block;
+    width: 45%;
+    margin: 0 auto;
+  }
+
+  .dashboard-editor-container {
+    /*background-color: #e3e3e3;*/
+    min-height: 100vh;
+    /*padding: 50px 60px 0px;*/
+    .pan-info-roles {
+      font-size: 12px;
+      font-weight: 700;
+      color: #333;
+      display: block;
+    }
+    .info-container {
+      position: relative;
+      margin-left: 190px;
+      height: 150px;
+      line-height: 200px;
+      .display_name {
+        font-size: 48px;
+        line-height: 48px;
+        color: #212121;
+        position: absolute;
+        top: 25px;
+      }
+    }
+  }
+</style>
