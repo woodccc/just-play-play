@@ -31,8 +31,7 @@ export default {
   name: 'DashboardEditor',
   components: { LineChart },
   data() {
-    // const needShowDBIndexes = [1, 3, 4, 5, 6, 7]
-    const needShowDBIndexes = [1]
+    const needShowDBIndexes = [1, 3, 4, 5, 6, 7]
 
     return {
       chart: null,
