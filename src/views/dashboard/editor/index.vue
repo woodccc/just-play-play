@@ -12,6 +12,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import LineChart from '../admin/components/LineChart'
+import dayjs from 'dayjs'
 
 import { toPairs, get } from 'lodash'
 
@@ -30,7 +31,8 @@ export default {
   name: 'DashboardEditor',
   components: { LineChart },
   data() {
-    const needShowDBIndexes = [1, 3, 4, 5, 6, 7]
+    // const needShowDBIndexes = [1, 3, 4, 5, 6, 7]
+    const needShowDBIndexes = [1]
 
     return {
       chart: null,
@@ -69,13 +71,14 @@ export default {
       const chartResponse = await fetchChartDataByNameAndDate(this.dbNames[dbIndex], dbDates[dbDates.length - 1])
       const chartData = chartResponse.data
 
-      let toPairs1 = toPairs(chartData)
+      let toPairs1 = chartData
       toPairs1.forEach((item) => {
-        this.lineChartData[chartIndex].xAxisData.push(item[0])
+        const a = dayjs((item.result[0].value['0']) * 1000).format("MM-DD HH:mm")
+        this.lineChartData[chartIndex].xAxisData.push(a)
       })
-      let seriesOriginData = toPairs1[19][1].map(item => {
+      let seriesOriginData = toPairs1[0].result.map(item => {
         return {
-          name: item.metricInfo
+          name: get(toPairs(item.metric), '0.1')
         }
       })
       seriesOriginData = seriesOriginData.map(seriesItem => {
@@ -83,8 +86,8 @@ export default {
           ...seriesItem,
           color: getRandomColor(),
           data: toPairs1.map(originItem => {
-            const target = originItem[1].find(item => item.metricInfo === seriesItem.name)
-            return Number(get(target, 'valueinfo', '0'))
+            const target = originItem.result.find(item => get(toPairs(item.metric), '0.1') === seriesItem.name)
+            return Number(get(target, 'value.1', '0'))
           })
         }
       })
