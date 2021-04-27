@@ -14,9 +14,9 @@ import { mapGetters } from 'vuex'
 import LineChart from '../admin/components/LineChart'
 import dayjs from 'dayjs'
 
-import { toPairs, get } from 'lodash'
+import { get, toPairs } from 'lodash'
 
-import { fetchNames, fetchDatesByDbName, fetchChartDataByNameAndDate } from '@/api/db'
+import { fetchChartDataByNameAndDate, fetchDatesByDbName, fetchNames } from '@/api/db'
 
 function getRandomColor() {
   var letters = '0123456789ABCDEF';
@@ -35,6 +35,7 @@ export default {
 
     return {
       chart: null,
+      timer: null,
       needShowDBIndexes,
       dbNames: [],
       emptyGif: 'https://wpimg.wallstcn.com/0e03b7da-db9e-4819-ba10-9016ddfdaed3',
@@ -57,25 +58,33 @@ export default {
     const dbNameResponse = await fetchNames()
     const dbNames = dbNameResponse.data
     this.dbNames = dbNames
-    this.needShowDBIndexes.forEach((dBIndex, index) => {
-      this.handleLoadChartData(index, dBIndex, 0)
-    })
+    this.handleRefreshAllChart()
+    this.timer = setInterval(() => {
+      this.handleRefreshAllChart()
+    }, 30000)
   },
   methods: {
     get,
-    async handleLoadChartData(chartIndex, dbIndex, dateIndex) {
+    handleRefreshAllChart() {
+      this.needShowDBIndexes.forEach((dBIndex, index) => {
+        this.handleLoadChartData(index, dBIndex)
+      })
+    },
+    async handleLoadChartData(chartIndex, dbIndex) {
       this.lineChartData[chartIndex].title = this.dbNames[dbIndex]
       const dbResponse = await fetchDatesByDbName(this.dbNames[dbIndex])
       const dbDates = dbResponse.data
       const chartResponse = await fetchChartDataByNameAndDate(this.dbNames[dbIndex], dbDates[dbDates.length - 1])
-      const chartData = chartResponse.data
+      const chartResponseData = chartResponse.data
 
-      let toPairs1 = chartData
-      toPairs1.forEach((item) => {
+      this.lineChartData[chartIndex].xAxisData = []
+
+      chartResponseData.forEach((item) => {
         const a = dayjs((item.result[0].value['0']) * 1000).format("MM-DD HH:mm")
         this.lineChartData[chartIndex].xAxisData.push(a)
       })
-      let seriesOriginData = toPairs1[0].result.map(item => {
+
+      let seriesOriginData = chartResponseData[0].result.map(item => {
         return {
           name: get(toPairs(item.metric), '0.1')
         }
@@ -84,14 +93,13 @@ export default {
         return {
           ...seriesItem,
           color: getRandomColor(),
-          data: toPairs1.map(originItem => {
+          data: chartResponseData.map(originItem => {
             const target = originItem.result.find(item => get(toPairs(item.metric), '0.1') === seriesItem.name)
             return Number(get(target, 'value.1', '0'))
           })
         }
       })
       this.lineChartData[chartIndex].seriesOriginData = seriesOriginData
-      console.log('this.lineChartData', this.lineChartData)
     }
   }
 }
